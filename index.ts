@@ -5,7 +5,7 @@ export class DataStore extends events.EventEmitter {
 
     constructor() {
         super();
-        this.data = {};
+        this.data = undefined;
     }
 
     public static formatPath(path: string): string {
@@ -15,13 +15,24 @@ export class DataStore extends events.EventEmitter {
         if (path.endsWith('/')) {
             path = path.substring(0, path.length - 1);
         }
+        if (path == '') {
+            path = '/';
+        }
         return path;
     }
 
     private getValue(path: string, initPath = false) {
         let spl = path.split('/');
 
+        if (initPath && !this.data) {
+            this.data = {};
+        }
+
         let cur = this.data;
+
+        if (path == '/') {
+            return cur;
+        }
 
         for (let i = 1; i < spl.length; i++) {
             if (typeof cur != 'object') {
@@ -65,12 +76,16 @@ export class DataStore extends events.EventEmitter {
     public update(path: string, newVal: any): void {
         let ref = this.ref(path);
 
-        let parent = ref.parent();
+        if (ref.path == '/') {
+            this.data = newVal;
+        } else {
+            let parent = ref.parent();
 
-        let node = this.getValue(parent.path, true);
-        node[ref.name] = newVal;
+            let node = this.getValue(parent.path, true);
+            node[ref.name] = newVal;
+        }
 
-        this.emit('update', path);
+        this.emit('update', ref.path);
     }
 }
 
@@ -90,7 +105,11 @@ export class DataRef {
     }
 
     public ref(path: string): DataRef {
-        return this.store.ref(this.path + DataStore.formatPath(path));
+        let tmpPath = this.path + DataStore.formatPath(path);
+        if (this.path == '/') {
+            tmpPath = path;
+        }
+        return this.store.ref(tmpPath);
     }
 
     public hasChild(ref: DataRef): boolean {
@@ -121,10 +140,7 @@ export class DataRef {
                     return;
                 }
 
-                let relPath = path.substring(this.path.length);
-                if (relPath.length == 0) {
-                    relPath = '/';
-                }
+                let relPath = DataStore.formatPath(path.substring(this.path.length));
                 callback(this.value(), relPath);
             }
         });

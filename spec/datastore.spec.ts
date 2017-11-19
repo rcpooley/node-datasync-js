@@ -12,6 +12,22 @@ describe('datastore', () => {
         expect(ref2.value()).toBeUndefined();
     });
 
+    it('should handle root update', () => {
+        let store = new DataStore();
+
+        let refRoot = store.ref('/');
+        expect(refRoot.value()).toBeUndefined();
+        refRoot.update('test');
+        expect(refRoot.value()).toBe('test');
+        refRoot.update({a: 'b'});
+        expect(refRoot.value()).toEqual({a: 'b'});
+        expect(refRoot.ref('/a').value()).toBe('b');
+        refRoot.update('test2');
+        expect(refRoot.value()).toBe('test2');
+        refRoot.update(undefined);
+        expect(refRoot.value()).toBeUndefined();
+    });
+
     it('should handle simple updates', () => {
         let store = new DataStore();
 
@@ -42,6 +58,29 @@ describe('datastore', () => {
         refBoi.update('me');
         expect(refBoi.value()).toBe('me');
         expect(refE.value()).toEqual({boi: 'me'});
+    });
+
+    it('should call callbacks on root update', () => {
+        let store = new DataStore();
+
+        let update = [];
+
+        let ref = store.ref('/');
+        ref.on('update', (newVal: any, path: string) => {
+            update = [newVal, path];
+        });
+
+        //Test updating child
+        store.ref('/a/child').update('haha');
+        expect(update).toEqual([{a: {child: 'haha'}}, '/a/child']);
+
+        //Test updating value directly with object
+        ref.update({another: 'child'});
+        expect(update).toEqual([{another: 'child'}, '/']);
+
+        //Test updating value directly with string
+        ref.update('boi');
+        expect(update).toEqual(['boi', '/']);
     });
 
     it('should call callbacks on update', () => {
