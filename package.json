@@ -6,11 +6,13 @@
   "typings": "definitions/index",
   "scripts": {
     "start": "gulp",
-    "test": "gulp test"
+    "test": "gulp test",
+    "bundle": "browserify dist/index.js -o dist/datasync-js.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "repository": "https://github.com/rcpooley/node-datasync-js",
   "devDependencies": {
     "@types/node": "^8.0.53",
     "@types/socket.io": "^1.4.31",

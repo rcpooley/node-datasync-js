@@ -205,3 +205,18 @@ export class DataRef {
         });
     }
 }
+
+export class DataStores {
+    private stores: {[storeid: string]: DataStore};
+
+    constructor() {
+        this.stores = {};
+    }
+
+    public getStore(storeid: string): DataStore {
+        if (!(storeid in this.stores)) {
+            this.stores[storeid] = new DataStore();
+        }
+        return this.stores[storeid];
+    }
+}
