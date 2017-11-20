@@ -1,4 +1,4 @@
-import * as events from 'events';
+import * as ee from 'event-emitter';
 import {Socket} from 'socket.io';
 
 interface DataUpdate {
@@ -25,7 +25,7 @@ export class DataStoreServer {
             sendUpdate('/');
         }
 
-        store.on('update', (update: any) => {
+        store.events.on('update', (update: any) => {
             if (update.flags.indexOf('local') == -1) {
                 sendUpdate(update.path);
             }
@@ -55,12 +55,13 @@ export class DataStoreServer {
     }
 }
 
-export class DataStore extends events.EventEmitter {
+export class DataStore {
     private data: any;
+    public events;
 
     constructor() {
-        super();
         this.data = undefined;
+        this.events = ee();
     }
 
     public static formatPath(path: string): string {
@@ -140,7 +141,7 @@ export class DataStore extends events.EventEmitter {
             node[ref.name] = newVal;
         }
 
-        this.emit('update', {
+        this.events.emit('update', {
             path: ref.path,
             flags: flags
         });
@@ -187,7 +188,7 @@ export class DataRef {
     }
 
     public on(event: string, callback: (newVal: any, updatePath: string) => void): void {
-        this.store.on('update', (obj: any) => {
+        this.store.events.on('update', (obj: any) => {
             let path = obj.path;
             let ref = this.store.ref(path);
             if (ref.isChildOf(this)) {

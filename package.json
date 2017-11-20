@@ -14,6 +14,7 @@
   "license": "ISC",
   "repository": "https://github.com/rcpooley/node-datasync-js",
   "devDependencies": {
+    "@types/event-emitter": "^0.3.2",
     "@types/node": "^8.0.53",
     "@types/socket.io": "^1.4.31",
     "gulp": "^3.9.1",
@@ -26,6 +27,7 @@
   },
   "dependencies": {
     "@types/jasmine": "^2.8.2",
+    "event-emitter": "^0.3.5",
     "socket.io": "^2.0.4"
   }
 }
