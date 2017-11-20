@@ -61,7 +61,7 @@ export class DataStore {
 
     constructor() {
         this.data = undefined;
-        this.events = ee();
+        this.events = ee(null);
     }
 
     public static formatPath(path: string): string {
