@@ -262,8 +262,8 @@ describe('datastore', () => {
             });
 
             let socket = MySocket.getSockets();
-            server.addSocket(socket[0],'SERVER');
-            client.addSocket(socket[1],'CLIENT');
+            server.addSocket(socket[0]);
+            client.addSocket(socket[1]);
             client.bindStore(socket[1], 'mystore');
         }
 
