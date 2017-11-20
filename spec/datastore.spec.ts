@@ -1,6 +1,5 @@
 import {DataStore, DataStoreServer} from "../index";
 import {Socket} from 'socket.io';
-import * as events from 'events';
 
 class Stores {
     private stores: {[storeid: string]: DataStore};
@@ -17,12 +16,39 @@ class Stores {
     }
 }
 
-class MySocket extends events.EventEmitter {
+let lastID = 1;
 
-    constructor() {
-        super();
+class MySocket {
+
+    static getSockets(): MySocket[] {
+        let a = new MySocket();
+        let b = new MySocket();
+        a.sibling = b;
+        b.sibling = a;
+        return [a, b];
     }
 
+    id: string;
+    listeners: {[event: string]: ((data: any) => void)[]};
+    sibling: MySocket;
+
+    constructor() {
+        this.id = (lastID++) + '';
+        this.listeners = {};
+    }
+
+    on(event: string, callback: (data: any) => void) {
+        if (!(event in this.listeners)) {
+            this.listeners[event] = [];
+        }
+        this.listeners[event].push(callback);
+    }
+
+    emit(event: string, data: any) {
+        this.sibling.listeners[event].forEach(listener => {
+            listener(data);
+        });
+    }
 }
 
 describe('datastore', () => {
@@ -185,7 +211,7 @@ describe('datastore', () => {
         let serverStores = new Stores();
         let clientStores = new Stores();
 
-        let socket = new MySocket();
+        let socket = MySocket.getSockets();
 
         let server = new DataStoreServer((socket: Socket, storeid: string, callback: (store: DataStore) => void) => {
             callback(serverStores.getStore(storeid));
@@ -195,10 +221,10 @@ describe('datastore', () => {
             callback(clientStores.getStore(storeid));
         });
 
-        server.addSocket(socket);
-        client.addSocket(socket);
+        server.addSocket(socket[0]);
+        client.addSocket(socket[1]);
 
-        client.bindStore(socket, 'mystore');
+        client.bindStore(socket[1], 'mystore');
 
         let serverStore = serverStores.getStore('mystore');
         let clientStore = clientStores.getStore('mystore');
@@ -217,5 +243,44 @@ describe('datastore', () => {
 
         serverStore.ref('/updateme/anode').update('lol');
         expect(update).toEqual([{anode: 'lol'}, '/anode']);
+    });
+
+    it('should handle multi-user DataStoreServer', () => {
+        let serverStores = new Stores();
+
+        let server = new DataStoreServer((socket: Socket, storeid: string, callback: (store: DataStore) => void) => {
+            callback(serverStores.getStore(storeid));
+        });
+
+        let clients = [];
+
+        for (let i = 0; i < 5; i++) {
+            let clientStores = new Stores();
+            clients.push(clientStores);
+            let client = new DataStoreServer((socket: Socket, storeid: string, callback: (store: DataStore) => void) => {
+                callback(clientStores.getStore(storeid));
+            });
+
+            let socket = MySocket.getSockets();
+            server.addSocket(socket[0],'SERVER');
+            client.addSocket(socket[1],'CLIENT');
+            client.bindStore(socket[1], 'mystore');
+        }
+
+        let serverStore = serverStores.getStore('mystore');
+        serverStore.ref('/node').update('hello');
+
+        for (let i = 0; i < 5; i++) {
+            let clientStore = clients[i].getStore('mystore');
+            expect(clientStore.ref('/node').value()).toBe('hello');
+        }
+
+        clients[0].getStore('mystore').ref('/hi').update('there');
+
+        expect(serverStore.ref('/hi').value()).toBe('there');
+        for (let i = 0; i < 5; i++) {
+            let clientStore = clients[i].getStore('mystore');
+            expect(clientStore.ref('/hi').value()).toBe('there');
+        }
     });
 });

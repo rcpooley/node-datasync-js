@@ -26,13 +26,13 @@ export class DataStoreServer {
         }
 
         store.events.on('update', (update: any) => {
-            if (update.flags.indexOf('local') == -1) {
+            if (update.flags.indexOf(socket.id) == -1) {
                 sendUpdate(update.path);
             }
         });
     }
 
-    public addSocket(socket: Socket): void {
+    public addSocket(socket: Socket, flag = ''): void {
         socket.on('datasync_bindstore', storeid => {
             this.fetchStore(socket, storeid, (store: DataStore) => {
                 this.emitStore(socket, storeid, store, true);
@@ -41,7 +41,7 @@ export class DataStoreServer {
 
         socket.on('datasync_update', (updateObj: DataUpdate) => {
             this.fetchStore(socket, updateObj.storeid, (store: DataStore) => {
-                store.update(updateObj.path, updateObj.value, ['local']);
+                store.update(updateObj.path, updateObj.value, [socket.id]);
             });
         });
     }
@@ -50,7 +50,7 @@ export class DataStoreServer {
         this.fetchStore(socket, storeid, (store: DataStore) => {
             socket.emit('datasync_bindstore', storeid);
 
-            this.emitStore(socket, storeid, store);
+            this.emitStore(socket, storeid, store, false);
         });
     }
 }
