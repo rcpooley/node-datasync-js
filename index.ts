@@ -1,4 +1,59 @@
 import * as events from 'events';
+import {Socket} from 'socket.io';
+
+interface DataUpdate {
+    storeid: string;
+    path: string;
+    value: any;
+}
+
+export class DataStoreServer {
+
+    constructor(private fetchStore: (socket: Socket, storeid: string, callback: (store: DataStore) => void) => void) {
+    }
+
+    private emitStore(socket: Socket, storeid: string, store: DataStore, sendRoot = false): void {
+        let sendUpdate = path => {
+            socket.emit('datasync_update', {
+                storeid: storeid,
+                path: path,
+                value: store.ref(path).value()
+            });
+        };
+
+        if (sendRoot) {
+            sendUpdate('/');
+        }
+
+        store.on('update', (update: any) => {
+            if (update.flags.indexOf('local') == -1) {
+                sendUpdate(update.path);
+            }
+        });
+    }
+
+    public addSocket(socket: Socket): void {
+        socket.on('datasync_bindstore', storeid => {
+            this.fetchStore(socket, storeid, (store: DataStore) => {
+                this.emitStore(socket, storeid, store, true);
+            });
+        });
+
+        socket.on('datasync_update', (updateObj: DataUpdate) => {
+            this.fetchStore(socket, updateObj.storeid, (store: DataStore) => {
+                store.update(updateObj.path, updateObj.value, ['local']);
+            });
+        });
+    }
+
+    public bindStore(socket: Socket, storeid: string): void {
+        this.fetchStore(socket, storeid, (store: DataStore) => {
+            socket.emit('datasync_bindstore', storeid);
+
+            this.emitStore(socket, storeid, store);
+        });
+    }
+}
 
 export class DataStore extends events.EventEmitter {
     private data: any;
@@ -73,7 +128,7 @@ export class DataStore extends events.EventEmitter {
         }
     }
 
-    public update(path: string, newVal: any): void {
+    public update(path: string, newVal: any, flags = []): void {
         let ref = this.ref(path);
 
         if (ref.path == '/') {
@@ -85,7 +140,10 @@ export class DataStore extends events.EventEmitter {
             node[ref.name] = newVal;
         }
 
-        this.emit('update', ref.path);
+        this.emit('update', {
+            path: ref.path,
+            flags: flags
+        });
     }
 }
 
@@ -129,7 +187,8 @@ export class DataRef {
     }
 
     public on(event: string, callback: (newVal: any, updatePath: string) => void): void {
-        this.store.on('update', (path: string) => {
+        this.store.on('update', (obj: any) => {
+            let path = obj.path;
             let ref = this.store.ref(path);
             if (ref.isChildOf(this)) {
                 if (event == 'updateChild' && this.path == path) {

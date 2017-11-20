@@ -1,4 +1,29 @@
-import {DataStore} from "../index";
+import {DataStore, DataStoreServer} from "../index";
+import {Socket} from 'socket.io';
+import * as events from 'events';
+
+class Stores {
+    private stores: {[storeid: string]: DataStore};
+
+    constructor() {
+        this.stores = {};
+    }
+
+    public getStore(storeid: string): DataStore {
+        if (!(storeid in this.stores)) {
+            this.stores[storeid] = new DataStore();
+        }
+        return this.stores[storeid];
+    }
+}
+
+class MySocket extends events.EventEmitter {
+
+    constructor() {
+        super();
+    }
+
+}
 
 describe('datastore', () => {
 
@@ -154,5 +179,43 @@ describe('datastore', () => {
         //Test updating value directly with object
         ref.update({goodbye: 'friend'});
         expect(update).toEqual([{goodbye: 'friend'}, '/']);
+    });
+
+    it('should handle simple DataStoreServer', () => {
+        let serverStores = new Stores();
+        let clientStores = new Stores();
+
+        let socket = new MySocket();
+
+        let server = new DataStoreServer((socket: Socket, storeid: string, callback: (store: DataStore) => void) => {
+            callback(serverStores.getStore(storeid));
+        });
+
+        let client = new DataStoreServer((socket: Socket, storeid: string, callback: (store: DataStore) => void) => {
+            callback(clientStores.getStore(storeid));
+        });
+
+        server.addSocket(socket);
+        client.addSocket(socket);
+
+        client.bindStore(socket, 'mystore');
+
+        let serverStore = serverStores.getStore('mystore');
+        let clientStore = clientStores.getStore('mystore');
+
+        clientStore.ref('/hello').update('there');
+        expect(serverStore.ref('/hello').value()).toBe('there');
+
+        serverStore.ref('/goodbye').update('friend');
+        expect(clientStore.ref('/goodbye').value()).toBe('friend');
+
+        let update = [];
+
+        clientStore.ref('/updateme').on('update', (newVal: any, path: string) => {
+            update = [newVal, path];
+        });
+
+        serverStore.ref('/updateme/anode').update('lol');
+        expect(update).toEqual([{anode: 'lol'}, '/anode']);
     });
 });
