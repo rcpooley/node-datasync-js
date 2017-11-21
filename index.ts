@@ -43,7 +43,7 @@ export class DataStoreServer {
                 path: path,
                 value: store.ref(path).value()
             };
-            debug(`Sending update to socket ${socket.id}: ${updateObj}`);
+            debug(`Sending update to socket ${socket.id}: %O`, updateObj);
             socket.emit('datasync_update', updateObj);
         };
 
@@ -78,10 +78,10 @@ export class DataStoreServer {
                 });
 
                 if (updateValid) {
-                    debug(`Got update from socket ${socket.id}: ${updateObj}`);
+                    debug(`Got update from socket ${socket.id}: %O`, updateObj);
                     store.update(updateObj.path, updateObj.value, [socket.id]);
                 } else {
-                    debug(`Got invalid readonly update from socket ${socket.id}: ${updateObj}`);
+                    debug(`Got invalid readonly update from socket ${socket.id}: %O`, updateObj);
                     socket.emit('datasync_update', {
                         storeid: updateObj.storeid,
                         path: updateObj.path,
