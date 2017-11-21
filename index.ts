@@ -1,5 +1,4 @@
 import * as ee from 'event-emitter';
-import * as SocketIO from 'socket.io';
 
 interface DataUpdate {
     storeid: string;
@@ -7,49 +6,34 @@ interface DataUpdate {
     value: any;
 }
 
-export class MySocket {
+export class DataSocket {
 
-    static lastID: number = 1;
-
-    static getSockets(): MySocket[] {
-        let a = new MySocket();
-        let b = new MySocket();
-        a.sibling = b;
-        b.sibling = a;
-        return [a, b];
+    static fromSocket(socket: any) {
+        return new DataSocket(socket.id, (a, b) => {
+            socket.on(a, b);
+        }, (a, b) => {
+            socket.emit(a, b);
+        }, socket);
     }
 
-    id: string;
-    listeners: {[event: string]: ((data: any) => void)[]};
-    sibling: MySocket;
-
-    constructor() {
-        this.id = (MySocket.lastID++) + '';
-        this.listeners = {};
+    constructor(public id: string, private onFunc: Function, private emitFunc: Function, public object?: any) {
     }
 
-    on(event: string | symbol, listener: (...args: any[]) => void): MySocket {
-        if (!(event in this.listeners)) {
-            this.listeners[event] = [];
-        }
-        this.listeners[event].push(listener);
-        return this;
+    on(event: any, listener: any) {
+        this.onFunc(event, listener);
     }
 
-    emit(event: string | symbol, ...args: any[]): boolean {
-        this.sibling.listeners[event].forEach(listener => {
-            listener(args[0]);
-        });
-        return true;
+    emit(event: any, data: any) {
+        this.emitFunc(event, data);
     }
 }
 
 export class DataStoreServer {
 
-    constructor(private fetchStore: (socket: SocketIO.Socket|MySocket, storeid: string, callback: (store: DataStore) => void) => void) {
+    constructor(private fetchStore: (socket: DataSocket, storeid: string, callback: (store: DataStore) => void) => void) {
     }
 
-    private emitStore(socket: SocketIO.Socket|MySocket, storeid: string, store: DataStore, sendRoot = false): void {
+    private emitStore(socket: DataSocket, storeid: string, store: DataStore, sendRoot = false): void {
         let sendUpdate = path => {
             socket.emit('datasync_update', {
                 storeid: storeid,
@@ -69,7 +53,7 @@ export class DataStoreServer {
         });
     }
 
-    public addSocket(socket: SocketIO.Socket|MySocket, flag = ''): void {
+    public addSocket(socket: DataSocket, flag = ''): void {
         socket.on('datasync_bindstore', storeid => {
             this.fetchStore(socket, storeid, (store: DataStore) => {
                 this.emitStore(socket, storeid, store, true);
@@ -83,7 +67,7 @@ export class DataStoreServer {
         });
     }
 
-    public bindStore(socket: SocketIO.Socket|MySocket, storeid: string): void {
+    public bindStore(socket: DataSocket, storeid: string): void {
         this.fetchStore(socket, storeid, (store: DataStore) => {
             socket.emit('datasync_bindstore', storeid);
 
