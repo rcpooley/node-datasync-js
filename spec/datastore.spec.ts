@@ -44,6 +44,11 @@ class MySocket {
         return this;
     }
 
+    off(event: string): MySocket {
+        delete this.listeners[event];
+        return this;
+    }
+
     emit(event: string | symbol, ...args: any[]): boolean {
         this.sibling.listeners[event].forEach(listener => {
             listener(args[0]);
@@ -396,5 +401,63 @@ describe('datastore', () => {
         expect(serverRef.value()).toBe('haha');
         expect(clientRef.value()).toBe('haha');
         expect(thirdRef.value()).toBe('haha');
+    });
+
+    it('should handle disconnecting sockets', () => {
+        let serverStores = new Stores();
+        let clientStores = new Stores();
+
+        let socket = MySocket.getSockets();
+
+        let server = new DataStoreServer((socket: DataSocket, storeid: string, callback: (store: DataStore) => void) => {
+            callback(serverStores.getStore(storeid));
+        });
+
+        let client = new DataStoreServer((socket: DataSocket, storeid: string, callback: (store: DataStore) => void) => {
+            callback(clientStores.getStore(storeid));
+        });
+
+        server.addSocket(DataSocket.fromSocket(socket[0]));
+        client.addSocket(DataSocket.fromSocket(socket[1]));
+
+        client.bindStore(DataSocket.fromSocket(socket[1]), 'mystore');
+
+        let serverStore = serverStores.getStore('mystore');
+        let clientStore = clientStores.getStore('mystore');
+
+        clientStore.ref('/hello').update('there');
+        expect(clientStore.ref('/hello').value()).toBe('there');
+        expect(serverStore.ref('/hello').value()).toBe('there');
+
+        serverStore.ref('/goodbye').update('friend');
+        expect(clientStore.ref('/goodbye').value()).toBe('friend');
+        expect(serverStore.ref('/goodbye').value()).toBe('friend');
+
+        client.unbindStore(DataSocket.fromSocket(socket[1]), 'mystore');
+
+        clientStore.ref('/hello').update('mister');
+        expect(clientStore.ref('/hello').value()).toBe('mister');
+        expect(serverStore.ref('/hello').value()).toBe('there');
+
+        serverStore.ref('/goodbye').update('buddy');
+        expect(clientStore.ref('/goodbye').value()).toBe('friend');
+        expect(serverStore.ref('/goodbye').value()).toBe('buddy');
+
+        client.bindStore(DataSocket.fromSocket(socket[1]), 'mystore');
+        expect(clientStore.ref('/hello').value()).toBe('there');
+        expect(serverStore.ref('/hello').value()).toBe('there');
+        expect(clientStore.ref('/goodbye').value()).toBe('buddy');
+        expect(serverStore.ref('/goodbye').value()).toBe('buddy');
+
+        socket[0].emit('disconnect', true);
+        socket[1].emit('disconnect', true);
+
+        clientStore.ref('/node').update('woah');
+        expect(clientStore.ref('/node').value()).toBe('woah');
+        expect(serverStore.ref('/node').value()).toBeUndefined();
+
+        serverStore.ref('/bnode').update('haha');
+        expect(clientStore.ref('/bnode').value()).toBeUndefined();
+        expect(serverStore.ref('/bnode').value()).toBe('haha');
     });
 });

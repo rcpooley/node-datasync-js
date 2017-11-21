@@ -15,15 +15,21 @@ export class DataSocket {
         return new DataSocket(socket.id, (a, b) => {
             socket.on(a, b);
         }, (a, b) => {
+            socket.off(a, b);
+        }, (a, b) => {
             socket.emit(a, b);
         }, socket);
     }
 
-    constructor(public id: string, private onFunc: Function, private emitFunc: Function, public object?: any) {
+    constructor(public id: string, private onFunc: Function, private offFunc: Function, private emitFunc: Function, public object?: any) {
     }
 
     on(event: any, listener: any) {
         this.onFunc(event, listener);
+    }
+
+    off(event: any, listener?: any) {
+        this.offFunc(event, listener);
     }
 
     emit(event: any, data: any) {
@@ -33,7 +39,17 @@ export class DataSocket {
 
 export class DataStoreServer {
 
+    private socketStoreMap: {[socketid: string]: {[storeid: string]: Function}};
+
     constructor(private fetchStore: (socket: DataSocket, storeid: string, callback: (store: DataStore) => void) => void) {
+        this.socketStoreMap = {};
+    }
+
+    private getStoreMap(socketid: string): {[storeid: string]: Function} {
+        if (!(socketid in this.socketStoreMap)) {
+            this.socketStoreMap[socketid] = {};
+        }
+        return this.socketStoreMap[socketid];
     }
 
     private emitStore(socket: DataSocket, storeid: string, store: DataStore, sendRoot = false): void {
@@ -43,7 +59,7 @@ export class DataStoreServer {
                 path: path,
                 value: store.ref(path).value()
             };
-            debug(`Sending update to socket ${socket.id}: %O`, updateObj);
+            debug(`Sending update to socket ${socket.id}: ${JSON.stringify(updateObj, null, 2)}`);
             socket.emit('datasync_update', updateObj);
         };
 
@@ -51,10 +67,22 @@ export class DataStoreServer {
             sendUpdate('/');
         }
 
-        store.events.on('update', (update: any) => {
+        let listener;
+
+        store.events.on('update', listener = (update: any) => {
             if (update.flags.indexOf(socket.id) == -1) {
                 sendUpdate(update.path);
             }
+        });
+
+        this.getStoreMap(socket.id)[storeid] = listener;
+    }
+
+    private unEmitStore(socket: DataSocket, storeid: string): void {
+        this.fetchStore(socket, storeid, (store: DataStore) => {
+            let listener = this.getStoreMap(socket.id)[storeid];
+            store.events.off('update', listener);
+            delete this.socketStoreMap[socket.id][storeid];
         });
     }
 
@@ -64,6 +92,12 @@ export class DataStoreServer {
             this.fetchStore(socket, storeid, (store: DataStore) => {
                 this.emitStore(socket, storeid, store, true);
             });
+        });
+
+        socket.on('datasync_unbindstore', storeid => {
+            debug(`Unbind request from socket ${socket.id} for store ${storeid}`);
+
+            this.unEmitStore(socket, storeid);
         });
 
         socket.on('datasync_update', (updateObj: DataUpdate) => {
@@ -78,10 +112,10 @@ export class DataStoreServer {
                 });
 
                 if (updateValid) {
-                    debug(`Got update from socket ${socket.id}: %O`, updateObj);
+                    debug(`Got update from socket ${socket.id}: ${JSON.stringify(updateObj, null, 2)}`);
                     store.update(updateObj.path, updateObj.value, [socket.id]);
                 } else {
-                    debug(`Got invalid readonly update from socket ${socket.id}: %O`, updateObj);
+                    debug(`Got invalid readonly update from socket ${socket.id}: ${JSON.stringify(updateObj, null, 2)}`);
                     socket.emit('datasync_update', {
                         storeid: updateObj.storeid,
                         path: updateObj.path,
@@ -90,6 +124,23 @@ export class DataStoreServer {
                 }
             });
         });
+
+        socket.on('disconnect', () => {
+            this.removeSocket(socket);
+        });
+    }
+
+    private removeSocket(socket: DataSocket): void {
+        socket.off('datasync_bindstore');
+        socket.off('datasync_unbindstore');
+        socket.off('datasync_update');
+
+        let storemap = this.getStoreMap(socket.id);
+        Object.keys(storemap).forEach(storeid => {
+            this.unEmitStore(socket, storeid);
+        });
+
+        delete this.socketStoreMap[socket.id];
     }
 
     public bindStore(socket: DataSocket, storeid: string): void {
@@ -99,6 +150,14 @@ export class DataStoreServer {
 
             this.emitStore(socket, storeid, store, false);
         });
+    }
+
+    public unbindStore(socket: DataSocket, storeid: string): void {
+        debug(`Unbinding store ${storeid} with socket ${socket.id}`);
+
+        socket.emit('datasync_unbindstore', storeid);
+
+        this.unEmitStore(socket, storeid);
     }
 }
 
