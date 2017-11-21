@@ -7,7 +7,7 @@
   "scripts": {
     "start": "gulp",
     "test": "gulp test",
-    "bundle": "browserify dist/index.js -o dist/datasync-js.js"
+    "bundle": "browserify -r ./dist/index.js:datasync-js > dist/datasync-js.js"
   },
   "keywords": [],
   "author": "",

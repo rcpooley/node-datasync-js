@@ -1,5 +1,5 @@
-import {DataStore, DataStoreServer} from "../index";
-import {Socket} from 'socket.io';
+import {DataStore, DataStoreServer, MySocket} from "../index";
+import * as SocketIO from 'socket.io';
 
 class Stores {
     private stores: {[storeid: string]: DataStore};
@@ -13,41 +13,6 @@ class Stores {
             this.stores[storeid] = new DataStore();
         }
         return this.stores[storeid];
-    }
-}
-
-let lastID = 1;
-
-class MySocket {
-
-    static getSockets(): MySocket[] {
-        let a = new MySocket();
-        let b = new MySocket();
-        a.sibling = b;
-        b.sibling = a;
-        return [a, b];
-    }
-
-    id: string;
-    listeners: {[event: string]: ((data: any) => void)[]};
-    sibling: MySocket;
-
-    constructor() {
-        this.id = (lastID++) + '';
-        this.listeners = {};
-    }
-
-    on(event: string, callback: (data: any) => void) {
-        if (!(event in this.listeners)) {
-            this.listeners[event] = [];
-        }
-        this.listeners[event].push(callback);
-    }
-
-    emit(event: string, data: any) {
-        this.sibling.listeners[event].forEach(listener => {
-            listener(data);
-        });
     }
 }
 
@@ -213,11 +178,11 @@ describe('datastore', () => {
 
         let socket = MySocket.getSockets();
 
-        let server = new DataStoreServer((socket: Socket, storeid: string, callback: (store: DataStore) => void) => {
+        let server = new DataStoreServer((socket: SocketIO.Socket, storeid: string, callback: (store: DataStore) => void) => {
             callback(serverStores.getStore(storeid));
         });
 
-        let client = new DataStoreServer((socket: Socket, storeid: string, callback: (store: DataStore) => void) => {
+        let client = new DataStoreServer((socket: SocketIO.Socket, storeid: string, callback: (store: DataStore) => void) => {
             callback(clientStores.getStore(storeid));
         });
 
@@ -248,7 +213,7 @@ describe('datastore', () => {
     it('should handle multi-user DataStoreServer', () => {
         let serverStores = new Stores();
 
-        let server = new DataStoreServer((socket: Socket, storeid: string, callback: (store: DataStore) => void) => {
+        let server = new DataStoreServer((socket: SocketIO.Socket, storeid: string, callback: (store: DataStore) => void) => {
             callback(serverStores.getStore(storeid));
         });
 
@@ -257,7 +222,7 @@ describe('datastore', () => {
         for (let i = 0; i < 5; i++) {
             let clientStores = new Stores();
             clients.push(clientStores);
-            let client = new DataStoreServer((socket: Socket, storeid: string, callback: (store: DataStore) => void) => {
+            let client = new DataStoreServer((socket: SocketIO.Socket, storeid: string, callback: (store: DataStore) => void) => {
                 callback(clientStores.getStore(storeid));
             });
 
