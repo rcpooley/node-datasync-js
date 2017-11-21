@@ -1,4 +1,7 @@
 import * as ee from 'event-emitter';
+import * as dbg from 'debug';
+
+let debug = dbg('datasync-js');
 
 interface DataUpdate {
     storeid: string;
@@ -35,11 +38,13 @@ export class DataStoreServer {
 
     private emitStore(socket: DataSocket, storeid: string, store: DataStore, sendRoot = false): void {
         let sendUpdate = path => {
-            socket.emit('datasync_update', {
+            let updateObj = {
                 storeid: storeid,
                 path: path,
                 value: store.ref(path).value()
-            });
+            };
+            debug(`Sending update to socket ${socket.id}: ${updateObj}`);
+            socket.emit('datasync_update', updateObj);
         };
 
         if (sendRoot) {
@@ -55,6 +60,7 @@ export class DataStoreServer {
 
     public addSocket(socket: DataSocket): void {
         socket.on('datasync_bindstore', storeid => {
+            debug(`Bind request from socket ${socket.id} for store ${storeid}`);
             this.fetchStore(socket, storeid, (store: DataStore) => {
                 this.emitStore(socket, storeid, store, true);
             });
@@ -72,8 +78,10 @@ export class DataStoreServer {
                 });
 
                 if (updateValid) {
+                    debug(`Got update from socket ${socket.id}: ${updateObj}`);
                     store.update(updateObj.path, updateObj.value, [socket.id]);
                 } else {
+                    debug(`Got invalid readonly update from socket ${socket.id}: ${updateObj}`);
                     socket.emit('datasync_update', {
                         storeid: updateObj.storeid,
                         path: updateObj.path,
@@ -85,6 +93,7 @@ export class DataStoreServer {
     }
 
     public bindStore(socket: DataSocket, storeid: string): void {
+        debug(`Binding store ${storeid} with socket ${socket.id}`);
         this.fetchStore(socket, storeid, (store: DataStore) => {
             socket.emit('datasync_bindstore', storeid);
 
