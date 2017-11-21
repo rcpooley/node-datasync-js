@@ -172,6 +172,32 @@ describe('datastore', () => {
         expect(update).toEqual([{goodbye: 'friend'}, '/']);
     });
 
+    it('should call callbacks instantly with emitOnBind=true', () => {
+        let store = new DataStore();
+
+        let ref = store.ref('/node');
+        ref.update('hey there');
+
+        let update1 = [], update2 = [];
+
+        ref.on('update', (newVal: any, path: string) => {
+            update1 = [newVal, path];
+        });
+
+        ref.on('update', (newVal: any, path: string) => {
+            update2 = [newVal, path];
+        }, true);
+
+        expect(update1).toEqual([]);
+        expect(update2).toEqual(['hey there', '/']);
+
+        let check = ['whoops', '/'];
+        ref.update(check[0]);
+
+        expect(update1).toEqual(check);
+        expect(update2).toEqual(check);
+    });
+
     it('should handle simple DataStoreServer', () => {
         let serverStores = new Stores();
         let clientStores = new Stores();

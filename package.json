@@ -1,6 +1,6 @@
 {
   "name": "datasync-js",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Easily sync data between server and client using socket.io",
   "main": "dist/index.js",
   "typings": "definitions/index",

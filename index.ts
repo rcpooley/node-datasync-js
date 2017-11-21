@@ -224,7 +224,7 @@ export class DataRef {
         this.store.update(this.path, newVal);
     }
 
-    public on(event: string, callback: (newVal: any, updatePath: string) => void): void {
+    public on(event: string, callback: (newVal: any, updatePath: string) => void, emitOnBind = false): void {
         this.store.events.on('update', (obj: any) => {
             let path = obj.path;
             let ref = this.store.ref(path);
@@ -241,6 +241,10 @@ export class DataRef {
                 callback(this.value(), relPath);
             }
         });
+
+        if (emitOnBind) {
+            callback(this.value(), '/');
+        }
     }
 }
 
