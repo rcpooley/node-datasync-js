@@ -53,7 +53,7 @@ export class DataStoreServer {
         });
     }
 
-    public addSocket(socket: DataSocket, flag = ''): void {
+    public addSocket(socket: DataSocket): void {
         socket.on('datasync_bindstore', storeid => {
             this.fetchStore(socket, storeid, (store: DataStore) => {
                 this.emitStore(socket, storeid, store, true);
@@ -62,7 +62,24 @@ export class DataStoreServer {
 
         socket.on('datasync_update', (updateObj: DataUpdate) => {
             this.fetchStore(socket, updateObj.storeid, (store: DataStore) => {
-                store.update(updateObj.path, updateObj.value, [socket.id]);
+                let pathRef = store.ref(updateObj.path);
+
+                let updateValid = true;
+                store.readOnly.forEach(ref => {
+                    if (pathRef.isChildOf(ref)) {
+                        updateValid = false;
+                    }
+                });
+
+                if (updateValid) {
+                    store.update(updateObj.path, updateObj.value, [socket.id]);
+                } else {
+                    socket.emit('datasync_update', {
+                        storeid: updateObj.storeid,
+                        path: updateObj.path,
+                        value: pathRef.value()
+                    });
+                }
             });
         });
     }
@@ -79,10 +96,12 @@ export class DataStoreServer {
 export class DataStore {
     private data: any;
     public events;
+    public readOnly: DataRef[];
 
     constructor() {
         this.data = undefined;
         this.events = ee(null);
+        this.readOnly = [];
     }
 
     public static formatPath(path: string): string {
@@ -228,6 +247,18 @@ export class DataRef {
 
         if (emitOnBind) {
             callback(this.value(), '/');
+        }
+    }
+
+    public readOnly(state = true): void {
+        if (state) {
+            this.store.readOnly.push(this);
+        } else {
+            for (let i = this.store.readOnly.length - 1; i >= 0; i--) {
+                if (this.store.readOnly[i].path == this.path) {
+                    this.store.readOnly.splice(i, 1);
+                }
+            }
         }
     }
 }

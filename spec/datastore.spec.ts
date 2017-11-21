@@ -310,4 +310,91 @@ describe('datastore', () => {
             expect(clientStore.ref('/hi').value()).toBe('there');
         }
     });
+
+    it('should handle readonly DataStoreServer', () => {
+        let serverStores = new Stores();
+        let clientStores = new Stores();
+
+        let socket = MySocket.getSockets();
+
+        let server = new DataStoreServer((socket: DataSocket, storeid: string, callback: (store: DataStore) => void) => {
+            callback(serverStores.getStore(storeid));
+        });
+
+        let client = new DataStoreServer((socket: DataSocket, storeid: string, callback: (store: DataStore) => void) => {
+            callback(clientStores.getStore(storeid));
+        });
+
+        server.addSocket(DataSocket.fromSocket(socket[0]));
+        client.addSocket(DataSocket.fromSocket(socket[1]));
+
+        client.bindStore(DataSocket.fromSocket(socket[1]), 'mystore');
+
+        let serverStore = serverStores.getStore('mystore');
+        let clientStore = clientStores.getStore('mystore');
+
+        let clientRef = clientStore.ref('/hello');
+        let serverRef = serverStore.ref('/hello');
+
+        clientRef.update('there');
+        expect(clientRef.value()).toBe('there');
+        expect(serverRef.value()).toBe('there');
+
+        serverRef.readOnly();
+        serverRef.update('boy');
+        expect(clientRef.value()).toBe('boy');
+        expect(serverRef.value()).toBe('boy');
+
+        let update = [];
+        serverRef.on('update', (newVal, path) => {
+            update = [newVal, path];
+        });
+
+        clientRef.update('girl');
+        expect(serverRef.value()).toBe('boy');
+        expect(clientRef.value()).toBe('boy');
+        expect(update).toEqual([]);
+
+        //Now connect third DataStore to client DataStore
+        let thirdStore = new DataStore();
+
+        let newSockets = MySocket.getSockets();
+
+        let third = new DataStoreServer((socket: DataSocket, storeid: string, callback: (store: DataStore) => void) => {
+            callback(thirdStore);
+        });
+        third.addSocket(DataSocket.fromSocket(newSockets[0]));
+        client.addSocket(DataSocket.fromSocket(newSockets[1]));
+        third.bindStore(DataSocket.fromSocket(newSockets[0]), 'mystore');
+
+        let thirdRef = thirdStore.ref('/hello');
+        expect(thirdRef.value()).toBe('boy');
+
+        thirdStore.ref('/check').update('mate');
+        expect(clientStore.ref('/check').value()).toBe('mate');
+        expect(serverStore.ref('/check').value()).toBe('mate');
+        expect(thirdStore.ref('/check').value()).toBe('mate');
+
+        thirdRef.update('santa');
+        expect(serverRef.value()).toBe('boy');
+        expect(clientRef.value()).toBe('boy');
+        expect(thirdRef.value()).toBe('boy');
+
+        serverStore.ref('/hello').readOnly(false);
+
+        thirdRef.update('santa');
+        expect(serverRef.value()).toBe('santa');
+        expect(clientRef.value()).toBe('santa');
+        expect(thirdRef.value()).toBe('santa');
+
+        serverRef.update('clause');
+        expect(serverRef.value()).toBe('clause');
+        expect(clientRef.value()).toBe('clause');
+        expect(thirdRef.value()).toBe('clause');
+
+        clientRef.update('haha');
+        expect(serverRef.value()).toBe('haha');
+        expect(clientRef.value()).toBe('haha');
+        expect(thirdRef.value()).toBe('haha');
+    });
 });
