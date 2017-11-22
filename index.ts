@@ -15,7 +15,11 @@ export class DataSocket {
         return new DataSocket(socket.id, (a, b) => {
             socket.on(a, b);
         }, (a, b) => {
-            socket.off(a, b);
+            if (b) {
+                socket.removeListener(a, b);
+            } else {
+                socket.removeAllListeners(a);
+            }
         }, (a, b) => {
             socket.emit(a, b);
         }, socket);
