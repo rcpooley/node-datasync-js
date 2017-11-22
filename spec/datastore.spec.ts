@@ -213,6 +213,44 @@ describe('datastore', () => {
         expect(update).toEqual([{goodbye: 'friend'}, '/']);
     });
 
+    it('should propagate callbacks downwards', () => {
+        let store = new DataStore();
+
+        let updateValue = [], updateChild = [], update = [];
+
+        let ref = store.ref('/node');
+        ref.on('update', (newVal: any, path: string) => {
+            update = [newVal, path];
+        });
+        ref.on('updateChild', (newVal: any, path: string) => {
+            updateChild = [newVal, path];
+        });
+        ref.on('updateValue', (newVal: any, path: string) => {
+            updateValue = [newVal, path];
+        });
+
+        ref.ref('/test').update('hello');
+
+        expect(update).toEqual([{test: 'hello'}, '/test']);
+        expect(updateChild).toEqual([{test: 'hello'}, '/test']);
+        expect(updateValue).toEqual([]);
+
+        ref.update('boi');
+        expect(update).toEqual(['boi', '/']);
+        expect(updateChild).toEqual([{test: 'hello'}, '/test']);
+        expect(updateValue).toEqual(['boi', '/']);
+
+        store.ref('/').update({node: 'what'});
+        expect(update).toEqual(['what', '/']);
+        expect(updateChild).toEqual([{test: 'hello'}, '/test']);
+        expect(updateValue).toEqual(['what', '/']);
+
+        store.ref('/').update({node: {ha: 'lol'}});
+        expect(update).toEqual([{ha: 'lol'}, '/']);
+        expect(updateChild).toEqual([{test: 'hello'}, '/test']);
+        expect(updateValue).toEqual([{ha: 'lol'}, '/']);
+    });
+
     it('should call callbacks instantly with emitOnBind=true', () => {
         let store = new DataStore();
 

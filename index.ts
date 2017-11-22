@@ -318,6 +318,12 @@ export class DataRef {
 
                 let relPath = DataStore.formatPath(path.substring(this.path.length));
                 callback(this.value(), relPath);
+            } else if (ref.hasChild(this)) {
+                if (event == 'updateChild') {
+                    return;
+                }
+
+                callback(this.value(), '/');
             }
         });
 
