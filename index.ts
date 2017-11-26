@@ -313,6 +313,10 @@ export class DataStore {
             flags: flags
         });
     }
+
+    public clearAllListeners(): void {
+        this.events = ee(null);
+    }
 }
 
 export class DataRef {

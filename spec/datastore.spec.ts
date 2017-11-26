@@ -121,6 +121,36 @@ describe('datastore', () => {
         expect(update).toEqual(['lol', '/']);
     });
 
+    it('should handle clearAllListeners', () => {
+        let store = new DataStore();
+
+        let update = [];
+
+        let ref = store.ref('/nodeA');
+        ref.on('update', (newVal: any, path: string) => {
+            update = [newVal, path];
+        });
+
+        //Test update
+        store.ref('/nodeA/hello').update('world');
+        expect(update).toEqual([{hello: 'world'}, '/hello']);
+
+        store.clearAllListeners();
+
+        //Test update after removing listener
+        store.ref('/nodeA/goodbye').update('friend');
+        expect(update).toEqual([{hello: 'world'}, '/hello']);
+
+        //Re-listen
+        ref.on('update', (newVal: any, path: string) => {
+            update = [newVal, path];
+        });
+
+        //Test update
+        store.ref('/nodeA/whoops').update('there');
+        expect(update).toEqual([{hello: 'world', goodbye: 'friend', whoops: 'there'}, '/whoops']);
+    });
+
     it('should call callbacks on updateChild', () => {
         let store = new DataStore();
 
