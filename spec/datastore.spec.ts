@@ -1,4 +1,4 @@
-import {DataStore, DataStoreServer, DataSocket} from "../index";
+import {DataStore, DataStoreServer, DataSocket, FakeSocket} from "../index";
 
 class Stores {
     private stores: {[storeid: string]: DataStore};
@@ -12,48 +12,6 @@ class Stores {
             this.stores[storeid] = new DataStore();
         }
         return this.stores[storeid];
-    }
-}
-
-class MySocket {
-
-    static lastID: number = 1;
-
-    static getSockets(): MySocket[] {
-        let a = new MySocket();
-        let b = new MySocket();
-        a.sibling = b;
-        b.sibling = a;
-        return [a, b];
-    }
-
-    id: string;
-    listeners: {[event: string]: ((data: any) => void)[]};
-    sibling: MySocket;
-
-    constructor() {
-        this.id = (MySocket.lastID++) + '';
-        this.listeners = {};
-    }
-
-    on(event: string | symbol, listener: (...args: any[]) => void): MySocket {
-        if (!(event in this.listeners)) {
-            this.listeners[event] = [];
-        }
-        this.listeners[event].push(listener);
-        return this;
-    }
-
-    off(event: string): MySocket {
-        delete this.listeners[event];
-        return this;
-    }
-
-    emit(event: string | symbol, ...args: any[]): boolean {
-        this.sibling.listeners[event].forEach(listener => {
-            listener(args[0]);
-        });
-        return true;
     }
 }
 
@@ -281,7 +239,7 @@ describe('datastore', () => {
         let serverStores = new Stores();
         let clientStores = new Stores();
 
-        let socket = MySocket.getSockets();
+        let socket = FakeSocket.getSockets();
 
         let server = new DataStoreServer((socket: DataSocket, storeid: string, callback: (store: DataStore) => void) => {
             callback(serverStores.getStore(storeid));
@@ -331,7 +289,7 @@ describe('datastore', () => {
                 callback(clientStores.getStore(storeid));
             });
 
-            let socket = MySocket.getSockets();
+            let socket = FakeSocket.getSockets();
             server.addSocket(DataSocket.fromSocket(socket[0]));
             client.addSocket(DataSocket.fromSocket(socket[1]));
             client.bindStore(DataSocket.fromSocket(socket[1]), 'mystore');
@@ -358,7 +316,7 @@ describe('datastore', () => {
         let serverStores = new Stores();
         let clientStores = new Stores();
 
-        let socket = MySocket.getSockets();
+        let socket = FakeSocket.getSockets();
 
         let server = new DataStoreServer((socket: DataSocket, storeid: string, callback: (store: DataStore) => void) => {
             callback(serverStores.getStore(storeid));
@@ -401,7 +359,7 @@ describe('datastore', () => {
         //Now connect third DataStore to client DataStore
         let thirdStore = new DataStore();
 
-        let newSockets = MySocket.getSockets();
+        let newSockets = FakeSocket.getSockets();
 
         let third = new DataStoreServer((socket: DataSocket, storeid: string, callback: (store: DataStore) => void) => {
             callback(thirdStore);
@@ -445,7 +403,7 @@ describe('datastore', () => {
         let serverStores = new Stores();
         let clientStores = new Stores();
 
-        let socket = MySocket.getSockets();
+        let socket = FakeSocket.getSockets();
 
         let server = new DataStoreServer((socket: DataSocket, storeid: string, callback: (store: DataStore) => void) => {
             callback(serverStores.getStore(storeid));
@@ -487,8 +445,7 @@ describe('datastore', () => {
         expect(clientStore.ref('/goodbye').value()).toBe('buddy');
         expect(serverStore.ref('/goodbye').value()).toBe('buddy');
 
-        socket[0].emit('disconnect', true);
-        socket[1].emit('disconnect', true);
+        socket[0].disconnect();
 
         clientStore.ref('/node').update('woah');
         expect(clientStore.ref('/node').value()).toBe('woah');

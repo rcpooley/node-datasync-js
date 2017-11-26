@@ -45,6 +45,57 @@ export class DataSocket {
     }
 }
 
+export class FakeSocket {
+
+    static lastID: number = 1;
+
+    static getSockets(): FakeSocket[] {
+        let a = new FakeSocket();
+        let b = new FakeSocket();
+        a.sibling = b;
+        b.sibling = a;
+        return [a, b];
+    }
+
+    id: string;
+    listeners: {[event: string]: ((data: any) => void)[]};
+    sibling: FakeSocket;
+
+    constructor() {
+        this.id = (FakeSocket.lastID++) + '';
+        this.listeners = {};
+    }
+
+    private getListeners(event: string | symbol): ((data: any) => void)[] {
+        if (!(event in this.listeners)) {
+            this.listeners[event] = [];
+        }
+        return this.listeners[event];
+    }
+
+    on(event: string | symbol, listener: (...args: any[]) => void): FakeSocket {
+        this.getListeners(event).push(listener);
+        return this;
+    }
+
+    off(event: string | symbol): FakeSocket {
+        delete this.listeners[event];
+        return this;
+    }
+
+    emit(event: string | symbol, ...args: any[]): boolean {
+        this.sibling.getListeners(event).forEach(listener => {
+            listener(args[0]);
+        });
+        return true;
+    }
+
+    disconnect() {
+        this.emit('disconnect', 'true');
+        this.sibling.emit('disconnect', 'true');
+    }
+}
+
 export class DataStoreServer {
 
     private socketStoreMap: {[socketid: string]: {[storeid: string]: Function}};
