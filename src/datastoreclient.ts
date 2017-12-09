@@ -21,9 +21,7 @@ export class DataStoreClient extends DataStoreManager {
 
     public clearSocket(): void {
         if (this.socket) {
-            this.getStoreIDs().forEach(storeid => {
-                this.unbindStore(this.socket, storeid);
-            });
+            this.clearStores(this.socket);
             this.socket = null;
         }
     }

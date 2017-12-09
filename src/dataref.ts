@@ -53,8 +53,8 @@ export class DataRef {
         this.store.value(this.iPath, callback);
     }
 
-    public update(newVal: any): void {
-        this.store.update(this.iPath, newVal);
+    public update(newVal: any, flags = []): void {
+        this.store.update(this.iPath, newVal, flags);
     }
 
     public on(event: string, callback: StoreUpdateCallback, emitOnBind = false): ee.EventListener {

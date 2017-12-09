@@ -212,4 +212,21 @@ describe('dataref', () => {
         store.ref('/g/node/lol').update(6);
         expect(update6).toEqual([]);
     });
+
+    it('should handle edge case', () => {
+        store.ref('/').update(1);
+        store.ref('/lol').value(value => {
+            expect(value).toBeNull();
+        });
+    });
+
+    it('should handle update with flag', () => {
+        let ref = store.ref('/nop');
+        let update = [];
+        ref.on('update', (value, path, flags) => {
+            update = flags;
+        });
+        ref.update('lol', ['a', 'b']);
+        expect(update).toEqual(['a', 'b']);
+    })
 });
