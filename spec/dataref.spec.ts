@@ -228,5 +228,18 @@ describe('dataref', () => {
         });
         ref.update('lol', ['a', 'b']);
         expect(update).toEqual(['a', 'b']);
-    })
+    });
+
+    it('should handle update direct', () => {
+        let ref = store.ref('/ud');
+        let update = null;
+        ref.on('updateDirect', value => update = value);
+        expect(update).toBeNull();
+        ref.parent().update({ud: 'lol'})
+        expect(update).toBeNull();
+        ref.ref('/child').update('val');
+        expect(update).toBeNull();
+        ref.update('newval');
+        expect(update).toBe('newval');
+    });
 });

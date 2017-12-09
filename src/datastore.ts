@@ -44,7 +44,8 @@ export class DataStore {
 
             if (updateRef.isChildOf(ref)) {
                 if (event == 'updateChild' && ref.equals(updateRef) ||
-                    event == 'updateValue' && !ref.equals(updateRef)) {
+                    event == 'updateValue' && !ref.equals(updateRef) ||
+                    event == 'updateDirect' && !ref.equals(updateRef)) {
                     return;
                 }
 
@@ -52,7 +53,7 @@ export class DataStore {
                     callback(value, ref.getRelativeChildPath(updateRef), update.flags);
                 });
             } else if (updateRef.hasChild(ref)) {
-                if (event == 'updateChild') {
+                if (event == 'updateChild' || event == 'updateDirect') {
                     return;
                 }
 
