@@ -7,18 +7,18 @@ import {DataStore} from "./datastore";
 export class DataStoreServer extends DataStoreManager {
 
     private router: UserRouter;
-    private globalStoreIDs: string[];
+    private globalStoreIDs: {[storeID: string]: string[]};
     private onBindCallbacks: OnBindCallback[];
 
     constructor() {
         super();
         this.router = new UserRouter();
-        this.globalStoreIDs = [];
+        this.globalStoreIDs = {};
         this.onBindCallbacks = [];
     }
 
-    public serveGlobal(storeid: string): DataStoreServer {
-        this.globalStoreIDs.push(storeid);
+    public serveGlobal(storeid: string, forceUserIDs = []): DataStoreServer {
+        this.globalStoreIDs[storeid] = forceUserIDs;
         return this.serveByUser(storeid, (socket, storeid, connInfo, callback) => {
             callback('global');
         });
@@ -67,7 +67,7 @@ export class DataStoreServer extends DataStoreManager {
     }
 
     public getStore(storeID: string, userID = 'global'): DataStore {
-        if (this.globalStoreIDs.indexOf(storeID) >= 0) {
+        if (storeID in this.globalStoreIDs && this.globalStoreIDs[storeID].indexOf(userID) == -1) {
             userID = 'global';
         }
 
