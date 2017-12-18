@@ -6,7 +6,7 @@
   "typings": "definitions/index",
   "scripts": {
     "start": "gulp",
-    "test": "gulp test",
+    "test": "set DEBUG=datasync-js && gulp test",
     "bundle": "browserify -r ./dist/index.js:datasync-js > dist/datasync-js.js"
   },
   "keywords": [],

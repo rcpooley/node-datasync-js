@@ -1,5 +1,3 @@
-import * as ee from 'event-emitter';
-
 export class DataSocket {
 
     static fromSocket(socket: any): DataSocket {
@@ -15,19 +13,16 @@ export class DataSocket {
             } else {
                 socket.removeAllListeners(a);
             }
-        }, (a, b) => {
-            socket.emit(a, b);
+        }, (a, ...b) => {
+            socket.emit(a, ...b);
         }, socket);
     }
-
-    public __ds__listeners: {[storeid: string]: ee.EventListener};
 
     constructor(public id: string,
                 private onFunc: Function,
                 private offFunc: Function,
                 private emitFunc: Function,
                 public tag?: any) {
-        this.__ds__listeners = {};
     }
 
     on(event: any, listener: any) {
@@ -38,7 +33,7 @@ export class DataSocket {
         this.offFunc(event, listener);
     }
 
-    emit(event: any, data: any) {
-        this.emitFunc(event, data);
+    emit(event: any, ...data: any[]) {
+        this.emitFunc(event, ...data);
     }
 }

@@ -1,158 +1,103 @@
 import {DataStoreServer} from "../src/datastoreserver";
 import {DataSocket} from "../src/datasocket";
 import {FakeSocket} from "../src/fakesocket";
-import {DataStoreManager} from "../src/datastoremanager";
-import {MyTester} from "./mytester";
+import {dataSocketTester} from "./testers";
+import {MyPromise} from "./mypromise";
 
-interface MyMan {
-    bindStore: (socket: DataSocket, storeid: string, emitOnBind: boolean) => void;
-    unbindStore: (socket: DataSocket, storeid: string) => void;
-    clearStores: (socket: DataSocket) => void;
-}
+let oldpromise;
 
 describe('datastoreserver', () => {
+    let server: DataStoreServer;
+    let clientSocket: DataSocket, serverSocket: DataSocket;
+    let clientSocketTester, serverSocketTester;
+
     it('should title', () => {
+        oldpromise = global.Promise;
+        global.Promise = MyPromise;
         console.log('\nDataStoreServer:');
+        server = new DataStoreServer();
+        let sockets = FakeSocket.getSockets('flysocket').map(fake => DataSocket.fromSocket((fake)));
+        clientSocket = sockets[0];
+        serverSocket = sockets[1];
+        clientSocketTester = dataSocketTester(clientSocket);
+        serverSocketTester = dataSocketTester(serverSocket);
     });
 
-    //General setup
-    let sockets: DataSocket[] = FakeSocket.getSockets('mysock').map(fake => DataSocket.fromSocket(fake));
+    it('should fail getStore that doesn\'nt exist', () => {
+        try {
+            server.getStore('store');
+            expect(true).toBe(false);
+        } catch(e) {
+            expect(e.message).toBe('Invalid storeid: store-global');
+        }
+    });
 
-    let server = new DataStoreServer();
-    server.serveGlobal('store').serveByUser('user');
+    it('should serveGlobal', () => {
+        server.serveGlobal('store');
 
-    let serverStore = server.getStore('store');
-    let serverUser = server.getStore('user', sockets[0].id);
+        let store1 = server.getStore('store');
+        let store2 = server.getStore('store', 'user');
+        expect(store1).toBe(store2);
+    });
+
+    it('should serveByUser', () => {
+        server.serveByUser('user');
+
+        let store1 = server.getStore('user', 'u1');
+        let store2 = server.getStore('user', 'u2');
+        expect(store1.userid).toBe('u1');
+        expect(store2.userid).toBe('u2');
+    });
+
+    it('should addSocket', () => {
+        serverSocketTester.assertHasListeners(false);
+
+        server.addSocket(serverSocket);
+
+        serverSocketTester.assertHasListeners(true);
+        serverSocketTester.assertHasListeners(true, 'datasync_bindrequest');
+    });
 
     let onBind = [];
-    server.onBind((socket, store) => {
-        onBind = [socket, store];
+    it('should handle onBind', () => {
+        server.onBind((socket, store) => {
+            onBind = [socket, store];
+        });
     });
 
-    let client: any = new DataStoreManager().serveGlobal('store').serveGlobal('user');
-    let clnt: MyMan = client;
-
-    let clientStore = client.getStore('store');
-    let clientUser = client.getStore('user');
-
-    let getStoreValues = path => {
-        let valA = null, valB = null;
-        serverStore.ref(path).value(value => valA = value);
-        clientStore.ref(path).value(value => valB = value);
-        return [valA, valB];
-    };
-
-    let getUserValues = path => {
-        let valA = null, valB = null;
-        serverUser.ref(path).value(value => valA = value);
-        clientUser.ref(path).value(value => valB = value);
-        return [valA, valB];
-    };
-
-    //Setup testers
-    let testBothStore = new MyTester(path => {
-        return getStoreValues(path);
-    });
-
-    let testBothUser = new MyTester(path => {
-        return getUserValues(path);
-    });
-
-    let testUpdate = new MyTester((store, path, val) => {
-        store.ref(path).update(val);
-        let values;
-        if (store == serverStore || store == clientStore) {
-            values = getStoreValues(path);
-        } else {
-            values = getUserValues(path);
-        }
-        return values[0] == values[1] && values[1] == val;
-    }, false, inps => {
-        return `[store],${inps[1]},${inps[2]}`;
-    });
-
-    let testListeners = new MyTester((socket: DataSocket) => {
-        return socket.tag.hasListeners();
-    }, false, inputs => {
-        if (inputs[0] == sockets[0]) {
-            return '[serverSocket]';
-        } else {
-            return '[clientSocket]';
-        }
-    });
-
-    //Setup tests
-    let notConnected = () => {
-        it('should update values', () => {
-            serverStore.ref('/nc').update('a');
-            clientStore.ref('/nc').update('b');
-            serverUser.ref('/nc').update('c');
-            clientUser.ref('/nc').update('d');
+    let onBindStore = [];
+    it('should handle bindRequest', () => {
+        clientSocket.on('datasync_bindstore', (reqID, bindID) => {
+            onBindStore = [reqID, bindID];
         });
 
-        testBothStore.expect(['a', 'b']).test('/nc');
-        testBothUser.expect(['c', 'd']).test('/nc');
+        let reqID = 'coolreqqid';
 
-        testListeners.expect(false).multitest(1, sockets[0], sockets[1]);
-    };
+        onBind = [];
+        onBindStore = [];
+        clientSocket.emit('datasync_bindrequest', reqID, 'nostore', {});
+        expect(onBind).toEqual([]);
+        expect(onBindStore).toEqual([reqID, null]);
 
-    let isConnected = () => {
-        testListeners.expect(true).multitest(1, sockets[0], sockets[1]);
+        reqID = 'anotherreq';
+        onBind = [];
+        onBindStore = [];
+        clientSocket.emit('datasync_bindrequest', reqID, 'store', {});
+        expect(onBind[0]).toBe(serverSocket);
+        expect(onBind[1]).toBe(server.getStore('store'));
+        expect(onBindStore[0]).toBe(reqID);
+        expect(onBindStore[1].length).toBe(10);
+    });
 
-        testUpdate.expect(true).multitest(3,
-            serverStore, '/isc', 'newval',
-            clientStore, '/isc', 'newerval',
-            serverUser, '/isc', 300,
-            clientUser, '/isc', 400);
-    };
+    it('should handle removeSocket', () => {
+        serverSocketTester.assertHasListeners(true);
 
-    let initConnection = () => {
-        it('should bind and connect', () => {
-            serverStore.ref('/ic').update('a');
-            clientStore.ref('/ic').update('b');
-            serverUser.ref('/ic').update('c');
-            clientUser.ref('/ic').update('d');
+        server.removeSocket(serverSocket);
 
-            clnt.bindStore(sockets[1], 'store', false);
-            clnt.bindStore(sockets[1], 'user', false);
+        serverSocketTester.assertHasListeners(false);
+    });
 
-            server.addSocket(sockets[0]);
-
-            ['store', 'user'].forEach(storeid => {
-                onBind = [];
-                sockets[1].emit('datasync_bindstore', storeid);
-                expect(onBind).toEqual([sockets[0], server.getStore(storeid, sockets[0].id)]);
-            });
-        });
-
-        testBothStore.expect(['a', 'a']).test('/ic');
-        testBothUser.expect(['c', 'c']).test('/ic');
-    };
-
-    let destroyConnection = () => {
-        it('should remove server socket', () => {
-            server.removeSocket(sockets[0]);
-        });
-
-        testListeners.expect(false).test(sockets[0])
-            .expect(true).test(sockets[1]);
-
-        it('should remove client socket', () => {
-            clnt.unbindStore(sockets[1], 'store');
-            clnt.unbindStore(sockets[1], 'user');
-        });
-
-        testListeners.expect(false).multitest(1, sockets[0], sockets[1]);
-    };
-
-    //Start tests
-    notConnected();
-
-    initConnection();
-
-    isConnected();
-
-    destroyConnection();
-
-    notConnected();
+    it('should footer', () => {
+        global.Promise = oldpromise;
+    });
 });

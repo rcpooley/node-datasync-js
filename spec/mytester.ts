@@ -12,8 +12,9 @@ export class MyTester {
         private formatInputs?: (inputs: any[]) => string) {
     }
 
-    public setTestName(name: string): void {
+    public setTestName(name: string): MyTester {
         this.testName = name;
+        return this;
     }
 
     public expectWithMem(val: any): MyTester {

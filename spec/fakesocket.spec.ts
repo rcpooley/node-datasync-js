@@ -43,6 +43,15 @@ describe('fakesocket', () => {
     }, false, printInputs);
     testEmit.setTestName('testEmit');
 
+    let c, d;
+    let testMultiEmit = new MyTester((socket, event) => {
+        c = null;
+        d = null;
+        socket.emit(event + 'multi', 'a', 'b');
+        return [c == 'ab' ? true : null, d == 'ab' ? true : null];
+    }, false, printInputs);
+    testMultiEmit.setTestName('testMultiEmit');
+
     //Setup tests
     let noListeners = (...events) => {
         events.forEach(event => {
@@ -57,12 +66,17 @@ describe('fakesocket', () => {
             testEmit.expect([null, null]).multitest(2,
                 sockets[0], event,
                 sockets[1], event);
+            testMultiEmit.expect([null, null]).multitest(2,
+                sockets[0], event,
+                sockets[1], event);
         });
     };
 
     let shouldEmit = (...events) => {
         events.forEach(event => {
             testEmit.expect([true, null]).test(sockets[1], event)
+                .expect([null, true]).test(sockets[0], event);
+            testMultiEmit.expect([true, null]).test(sockets[1], event)
                 .expect([null, true]).test(sockets[0], event);
         });
     };
@@ -78,10 +92,12 @@ describe('fakesocket', () => {
     let listeners = {};
     let registerEvent = event => {
         it(`should setup event ${event}`, () => {
-            let l1, l2;
+            let l1, l2, l3, l4;
             sockets[0].on(event, l1 = obj => a = obj);
             sockets[1].on(event, l2 = obj => b = obj);
-            listeners[event] = [l1, l2];
+            sockets[0].on(event + 'multi', l3 = (a, b) => c = a + b);
+            sockets[1].on(event + 'multi', l4 = (a, b) => d = a + b);
+            listeners[event] = [l1, l2, l3, l4];
         });
     };
 
@@ -95,9 +111,13 @@ describe('fakesocket', () => {
                 delete listeners[event];
                 sockets[0].off(event, list[0]);
                 sockets[1].off(event, list[1]);
+                sockets[0].off(event + 'multi', list[2]);
+                sockets[1].off(event + 'multi', list[3]);
             } else {
                 sockets[0].off(event);
                 sockets[1].off(event);
+                sockets[0].off(event + 'multi');
+                sockets[1].off(event + 'multi');
             }
         });
     };

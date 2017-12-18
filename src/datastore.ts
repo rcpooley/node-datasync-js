@@ -1,8 +1,8 @@
 import {DataRef} from "./dataref";
 import {ValuePathCallback, StoreUpdateCallback} from "./types";
 import * as ee from 'event-emitter';
-import {DataStoreManager} from "./datastoremanager";
 import {DataUtil} from "./datautil";
+import {DataStores} from "./datastores";
 
 interface InternalUpdate {
     path: string,
@@ -13,7 +13,9 @@ export class DataStore {
 
     private emitter: ee.Emitter;
 
-    constructor(private manager: DataStoreManager, public storeid: string, public userid?: string) {
+    constructor(private manager: DataStores,
+                public storeid: string,
+                public userid: string) {
         this.emitter = ee(null);
     }
 

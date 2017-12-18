@@ -1,13 +1,14 @@
 import {MyTester} from "./mytester";
 import {DataStoreManager} from "../src/datastoremanager";
+import {DataStore} from "../src/datastore";
+import {DataStores} from "../src/datastores";
 
 describe('dataref', () => {
     it('should title', () => {
         console.log('\nDataRef:');
     });
 
-    let store = new DataStoreManager()
-        .serveGlobal('test').getStore('test');
+    let store = new DataStores().getStore('store', 'global', true);
 
     let toRef = (...inputs) => {
         return inputs.map(path => store.ref(path));
