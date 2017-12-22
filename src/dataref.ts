@@ -57,6 +57,10 @@ export class DataRef {
         this.store.update(this.iPath, newVal, flags);
     }
 
+    public remove(flags = []): void {
+        this.store.remove(this.iPath, flags);
+    }
+
     public on(event: string, callback: StoreUpdateCallback, emitOnBind = false): ee.EventListener {
         return this.store.on(event, this.iPath, callback, emitOnBind);
     }

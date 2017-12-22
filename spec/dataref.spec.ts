@@ -236,11 +236,46 @@ describe('dataref', () => {
         let update = null;
         ref.on('updateDirect', value => update = value);
         expect(update).toBeNull();
-        ref.parent().update({ud: 'lol'})
+        ref.parent().update({ud: 'lol'});
         expect(update).toBeNull();
         ref.ref('/child').update('val');
         expect(update).toBeNull();
         ref.update('newval');
         expect(update).toBe('newval');
+        update = 'lol';
+        ref.remove();
+        expect(update).toBe(null);
     });
+
+    let deleteRef = store.ref('/testdelete');
+    let delUpdate = [];
+    deleteRef.on('update', (val, path) => delUpdate = [val, path]);
+    let deleteTester = {
+        value: new MyTester((path = '/') => {
+            let val = null;
+            deleteRef.ref(path).value(v => val = v);
+            return val;
+        }),
+        update: new MyTester((path, val) => {
+            deleteRef.ref(path).update(val);
+            return null;
+        }).expect(null),
+        remove: new MyTester(path => {
+            delUpdate = [];
+            deleteRef.ref(path).remove();
+            return delUpdate;
+        })
+    };
+
+    deleteTester.value.expect(null).multitest(1, '/', '/a', '/b', '/c');
+    deleteTester.update.multitest(2, '/a', 1, '/b', 2);
+    deleteTester.value.expect({a: 1, b: 2}).test().expect(null).test('/c');
+    deleteTester.update.multitest(2, '/a', null, '/b', null);
+    deleteTester.value.expect(null).multitest(1, '/a', '/b', '/c').expect({a: null, b: null}).test();
+    deleteTester.remove.expect([{b: null}, '/a']).test('/a');
+    deleteTester.value.expect(null).multitest(1, '/a', '/b', '/c').expect({b: null}).test();
+    deleteTester.remove.expect([{}, '/b']).test('/b');
+    deleteTester.value.expect(null).multitest(1, '/a', '/b', '/c').expect({}).test();
+    deleteTester.remove.expect([null, '/']).test('/');
+    deleteTester.value.expect(null).multitest(1, '/', '/a', '/b', '/c');
 });

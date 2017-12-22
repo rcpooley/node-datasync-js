@@ -36,6 +36,15 @@ export class DataStore {
         });
     }
 
+    public remove(path: string, flags = []): void {
+        this.manager.__ds__deleteData(this, path);
+
+        this.emitter.emit('update', {
+            path: DataUtil.formatPath(path),
+            flags: flags
+        });
+    }
+
     public on(event: string, path: string, callback: StoreUpdateCallback, emitOnBind = false): ee.EventListener {
         let ref = this.ref(path);
 

@@ -72,6 +72,29 @@ export class DataStores {
         }
     }
 
+    /**
+     * And internal method that should only be called from DataStore
+     *
+     * @param store The DataStore we are working with
+     * @param rawPath The path to the value to remove
+     * @private
+     */
+    public __ds__deleteData(store: DataStore, rawPath: string) {
+        let path = DataUtil.formatPath(rawPath);
+
+        let wrap = this.getStores(store.storeid)[store.userid];
+
+        if (path == '/') {
+            wrap.data = null;
+        } else {
+            if (!DataUtil.isObject(wrap.data)) {
+                wrap.data = {};
+            }
+
+            delete DataUtil.traverseObjectForReference(wrap.data, path)[DataUtil.getNameFromPath(path)];
+        }
+    }
+
     public getStore(storeid: string, userid: string, initialize: boolean) {
         if (!(storeid in this.stores) && !initialize) {
             throw new TypeError(`Invalid storeid: ${storeid}-${userid}`);
