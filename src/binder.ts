@@ -15,6 +15,7 @@ type BindIDMap = {[bindID: string]: {
 interface DataUpdate {
     path: string;
     value: string;
+    remove: boolean;
 }
 
 export class Binder {
@@ -39,11 +40,12 @@ export class Binder {
 
     public bindStore(socket: DataSocket, store: DataStore, bindID: string, emitOnBind = false): void {
         this.debug(`(${store.storeid}-${store.userid}) binding store from #${socket.id}`);
-        let sendUpdate = (path, value) => {
-            this.debug(`(${store.storeid}-${store.userid}) sending update (${path}, ${JSON.stringify(value)}) to #${socket.id}`);
+        let sendUpdate = (path, value, remove = false) => {
+            this.debug(`(${store.storeid}-${store.userid}) sending update (${path}, ${JSON.stringify(value)}, ${remove}) to #${socket.id}`);
             socket.emit('datasync_update_' + bindID, {
                 path: path,
-                value: JSON.stringify(value)
+                value: JSON.stringify(value),
+                remove: remove
             });
         };
 
@@ -54,12 +56,12 @@ export class Binder {
         });
 
         socket.on('datasync_update_' + bindID, (update: DataUpdate) => {
-            this.debug(`(${store.storeid}-${store.userid}) got update update (${update.path}, ${update.value}) to #${socket.id}`);
+            this.debug(`(${store.storeid}-${store.userid}) got update update (${update.path}, ${update.value}, ${update.remove}) to #${socket.id}`);
             this.updater.updateStore(socket, store, update.path, JSON.parse(update.value), () => {
                 store.ref(update.path).value(val => {
                     sendUpdate(update.path, val);
                 });
-            });
+            }, update.remove);
         });
 
         this.getListeners(socket.id)[bindID] = {
@@ -70,7 +72,7 @@ export class Binder {
                 }
 
                 store.ref(path).value(value => {
-                    sendUpdate(path, value);
+                    sendUpdate(path, value, flags.indexOf('__ds__removed') >= 0);
                 });
             }, emitOnBind)
         };
@@ -105,7 +107,7 @@ export class Binder {
         do {
             bindID = DataUtil.randomString(10);
             valid = curIDs.indexOf(bindID) == -1;
-        } while(!valid);
+        } while (!valid);
 
         return bindID;
     }

@@ -10,7 +10,7 @@ export class StoreUpdater {
         this.updateCallbacks = [];
     }
 
-    public updateStore(socket: DataSocket, store: DataStore, path: string, value: any, failCallback: () => void) {
+    public updateStore(socket: DataSocket, store: DataStore, path: string, value: any, failCallback: () => void, remove = false) {
         let valid = true;
 
         this.updateCallbacks.forEach(callback => {
@@ -22,7 +22,11 @@ export class StoreUpdater {
         if (!valid) {
             failCallback();
         } else {
-            store.update(path, value, [socket.id]);
+            if (remove) {
+                store.remove(path, [socket.id]);
+            } else {
+                store.update(path, value, [socket.id]);
+            }
         }
     }
 

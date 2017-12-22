@@ -26,11 +26,14 @@ describe('client-server connection', () => {
             },
             assertValue: (storeID, userID, path, value) => {
                 client.getStore(storeID, userID).ref(path).value(val => {
-                    expect(val).toBe(value);
+                    expect(val).toEqual(value);
                 });
             },
             updateValue: (storeID, userID, path, value) => {
                 client.getStore(storeID, userID).ref(path).update(value);
+            },
+            deleteValue: (storeID, userID, path) => {
+                client.getStore(storeID, userID).ref(path).remove();
             }
         };
     };
@@ -125,6 +128,30 @@ describe('client-server connection', () => {
                 });
             }
         }
+    });
+
+    it('should delete values', () => {
+        let uid = 'user1';
+        let path = `/${uid}del`;
+
+        let testAll = (path, value) => {
+            Object.keys(users[uid]).forEach(key => {
+                users[uid][key].assertValue('store', 'a', path, value);
+            });
+        };
+
+        users[uid][0].updateValue('store', 'a', path + '/a', 'aval');
+        users[uid][0].updateValue('store', 'a', path + '/b', 'bval');
+
+        testAll(path, {a: 'aval', b: 'bval'});
+
+        users[uid][0].updateValue('store', 'a', path + '/c', null);
+
+        testAll(path, {a: 'aval', b: 'bval', c: null});
+
+        users[uid][0].deleteValue('store', 'a', path + '/a');
+
+        testAll(path, {b: 'bval', c: null});
     });
 
     let admins;

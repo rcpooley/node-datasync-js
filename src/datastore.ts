@@ -41,7 +41,7 @@ export class DataStore {
 
         this.emitter.emit('update', {
             path: DataUtil.formatPath(path),
-            flags: flags
+            flags: flags.concat(['__ds__removed'])
         });
     }
 
