@@ -43,7 +43,9 @@ export class DataStores {
 
         let wrap = this.getStores(store.storeid)[store.userid];
 
-        callback(DataUtil.traverseObject(wrap.data, path), path);
+        let value = DataUtil.traverseObject(wrap.data, path);
+
+        callback(DataUtil.clone(value), path);
     }
 
     /**

@@ -152,4 +152,8 @@ export class DataUtil {
 
         return str;
     }
+
+    public static clone(obj: any): any {
+        return JSON.parse(JSON.stringify(obj));
+    }
 }
