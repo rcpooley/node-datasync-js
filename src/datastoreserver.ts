@@ -54,10 +54,20 @@ export class DataStoreServer extends DataStoreManager {
                 socket.emit('datasync_bindstore', reqID, bindID);
             });
         });
+
+        socket.on('datasync_unbindstore', bindID => {
+            this.binder.unbindStore(socket, bindID);
+        });
+
+        socket.on('datasync_disconnect', () => {
+            this.removeSocket(socket);
+        });
     }
 
     public removeSocket(socket: DataSocket): void {
         socket.off('datasync_bindrequest');
+        socket.off('datasync_unbindstore');
+        socket.off('datasync_disconnect');
 
         this.binder.unbindAll(socket);
     }

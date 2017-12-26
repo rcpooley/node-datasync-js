@@ -79,6 +79,7 @@ export class Binder {
     }
 
     public unbindStore(socket: DataSocket, bindID: string): void {
+        socket.emit('datasync_unbindstore', bindID);
         socket.off('datasync_update_' + bindID);
         socket.off('datasync_fetchall_' + bindID);
 

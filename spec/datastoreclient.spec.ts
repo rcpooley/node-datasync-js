@@ -55,7 +55,6 @@ describe('datastoreclient', () => {
             fetchAll = true;
         });
 
-
         let store = serverStores.getStore('store', 'global', true);
         store.ref('/init').update('initval');
 
@@ -72,6 +71,43 @@ describe('datastoreclient', () => {
         client.clearSocket();
 
         dataSocketTester(clientSocket).assertHasListeners(false);
+    });
+
+    it('should handle disconnectStore', () => {
+        client.setSocket(clientSocket);
+
+        onRequest = [];
+        let resp = client.connectStore('store', 'user', {lol: 'yep'});
+        expect(resp).toBe(client);
+
+        expect(onRequest[0].length).toBe(10);
+        expect(onRequest[1]).toBe('store');
+        expect(onRequest[2]).toEqual({lol: 'yep'});
+
+        let bindID = 'anotherone';
+
+        let fetchAll = false;
+        serverSocket.on('datasync_fetchall_' + bindID, () => {
+            fetchAll = true;
+        });
+
+        let store = serverStores.getStore('store', 'global', true);
+        store.ref('/init').update('initval');
+
+        expect(fetchAll).toBe(false);
+        dataSocketTester(clientSocket).assertHasListeners(false, 'datasync_fetchall_' + bindID);
+
+        serverSocket.emit('datasync_bindstore', onRequest[0], bindID);
+
+        expect(fetchAll).toBe(true);
+        dataSocketTester(clientSocket).assertHasListeners(true, 'datasync_fetchall_' + bindID);
+
+        let unbindID = null;
+        serverSocket.on('datasync_unbindstore', bindID => unbindID = bindID);
+
+        client.disconnectStore('store', 'user');
+        expect(unbindID).toBe(bindID);
+        dataSocketTester(clientSocket).assertHasListeners(false, 'datasync_fetchall_' + bindID);
     });
 
     it('should handle getStore', () => {

@@ -3,6 +3,7 @@ import {DataStoreServer} from "../src/datastoreserver";
 import {DataStoreClient} from "../src/datastoreclient";
 import {FakeSocket} from "../src/fakesocket";
 import {DataSocket} from "../src/datasocket";
+import {dataSocketTester} from "./testers";
 let oldpromise;
 
 describe('client-server connection', () => {
@@ -24,6 +25,9 @@ describe('client-server connection', () => {
             connect: (storeID, userID, connInfo) => {
                 client.connectStore(storeID, userID, connInfo);
             },
+            disconnect: (storeID, userID) => {
+                client.disconnectStore(storeID, userID);
+            },
             assertValue: (storeID, userID, path, value) => {
                 client.getStore(storeID, userID).ref(path).value(val => {
                     expect(val).toEqual(value);
@@ -34,6 +38,18 @@ describe('client-server connection', () => {
             },
             deleteValue: (storeID, userID, path) => {
                 client.getStore(storeID, userID).ref(path).remove();
+            },
+            destroy: () => {
+                client.clearSocket();
+                dataSocketTester(sockets[0]).assertHasListeners(false);
+                dataSocketTester(sockets[1]).assertHasListeners(false);
+            },
+            assertConnected: (bindID, val) => {
+                dataSocketTester(sockets[0]).assertHasListeners(val, 'datasync_update_' + bindID);
+                dataSocketTester(sockets[1]).assertHasListeners(val, 'datasync_update_' + bindID);
+            },
+            active: () => {
+                return (<any>client).activeStoreInfo;
             }
         };
     };
@@ -86,6 +102,22 @@ describe('client-server connection', () => {
 
         client.connect('store', 'a', {cancel: true});
         client.assertValue('store', 'a', '/', 'cancelled');
+    });
+
+    it('should connect and disconnect store', () => {
+        let client = connectClient();
+
+        client.auth('rando');
+
+        client.connect('store', 'lol', {});
+
+        let bindID = client.active()['store']['lol'];
+        client.assertConnected(bindID, true);
+
+        client.disconnect('store', 'lol');
+        client.assertConnected(bindID, false);
+
+        client.destroy();
     });
 
     let users = {};
@@ -169,7 +201,7 @@ describe('client-server connection', () => {
         }
     });
 
-    it('should update user values', () => {
+    it('should update user values with admins', () => {
         for (let i = 1; i <= 3; i++) {
             let uid = 'user' + i;
 
@@ -178,6 +210,32 @@ describe('client-server connection', () => {
             admins.forEach(admin => {
                 admin.assertValue('user', uid, '/node', uid + 'val');
             });
+        }
+    });
+
+    it('should disconnect admins', () => {
+        admins.forEach(admin => admin.destroy());
+    });
+
+    it('should update user values without admins', () => {
+        for (let i = 1; i <= 3; i++) {
+            let uid = 'user' + i;
+
+            users[uid][0].updateValue('user', 'a', '/node', uid + 'val2');
+
+            admins.forEach(admin => {
+                admin.assertValue('user', uid, '/node', uid + 'val');
+            });
+        }
+    });
+
+    it('should disconnect users', () => {
+        for (let i = 1; i <= 3; i++) {
+            let uid = 'user' + i;
+
+            for (let j = 0; j < 2; j++) {
+                users[uid][j].destroy();
+            }
         }
     });
 

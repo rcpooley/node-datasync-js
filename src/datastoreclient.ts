@@ -11,10 +11,12 @@ export class DataStoreClient extends DataStoreManager {
     }};
 
     private socket: DataSocket;
+    private activeStoreInfo: {[storeID: string]: {[userID: string]: string}};
 
     constructor() {
         super();
         this.reqMap = {};
+        this.activeStoreInfo = {};
     }
 
     private genReqID(): string {
@@ -28,6 +30,13 @@ export class DataStoreClient extends DataStoreManager {
         return reqID;
     }
 
+    private getStoreInfo(storeID: string): {[userID: string]: string} {
+        if (!(storeID in this.activeStoreInfo)) {
+            this.activeStoreInfo[storeID] = {};
+        }
+        return this.activeStoreInfo[storeID];
+    }
+
     public setSocket(socket: DataSocket): DataStoreClient {
         this.clearSocket();
 
@@ -37,6 +46,7 @@ export class DataStoreClient extends DataStoreManager {
             let req = this.reqMap[reqID];
 
             if (bindID) {
+                this.getStoreInfo(req.storeID)[req.userID] = bindID;
                 let store = this.stores.getStore(req.storeID, req.userID, true);
                 this.binder.bindStore(socket, store, bindID);
                 socket.emit('datasync_fetchall_' + bindID, '');
@@ -53,6 +63,8 @@ export class DataStoreClient extends DataStoreManager {
             return;
         }
 
+        this.socket.emit('datasync_disconnect', '');
+
         this.socket.off('datasync_bindstore');
 
         this.binder.unbindAll(this.socket);
@@ -68,6 +80,17 @@ export class DataStoreClient extends DataStoreManager {
         };
 
         this.socket.emit('datasync_bindrequest', reqID, storeID, connInfo);
+
+        return this;
+    }
+
+    public disconnectStore(storeID: string, userID = 'global'): DataStoreClient {
+        let userMap = this.getStoreInfo(storeID);
+
+        if (userID in userMap) {
+            this.binder.unbindStore(this.socket, userMap[userID]);
+            delete userMap[userID];
+        }
 
         return this;
     }
