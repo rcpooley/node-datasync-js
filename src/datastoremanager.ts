@@ -1,6 +1,7 @@
 import {Binder} from "./binder";
 import {DataStores} from "./datastores";
 import {StoreUpdater} from "./storeupdater";
+import {ValidUpdateCallback} from "./types";
 
 export class DataStoreManager {
 
@@ -16,5 +17,9 @@ export class DataStoreManager {
 
     public isClient(): boolean {
         return !!this['connectStore'];
+    }
+
+    public subscribeOnUpdate(callback: ValidUpdateCallback) {
+        this.updater.subscribeOnUpdate(callback);
     }
 }
