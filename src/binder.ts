@@ -56,7 +56,7 @@ export class Binder {
         });
 
         socket.on('datasync_update_' + bindID, (update: DataUpdate) => {
-            this.debug(`(${store.storeid}-${store.userid}) got update update (${update.path}, ${update.value}, ${update.remove}) to #${socket.id}`);
+            this.debug(`(${store.storeid}-${store.userid}) got update (${update.path}, ${update.value}, ${update.remove}) from #${socket.id}`);
             this.updater.updateStore(socket, store, update.path, JSON.parse(update.value), () => {
                 store.ref(update.path).value(val => {
                     sendUpdate(update.path, val);

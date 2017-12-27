@@ -60,8 +60,8 @@ describe('datastoreserver', () => {
 
     let onBind = [];
     it('should handle onBind', () => {
-        server.onBind((socket, store) => {
-            onBind = [socket, store];
+        server.onBind((socket, store, connInfo) => {
+            onBind = [socket, store, connInfo];
         });
     });
 
@@ -82,9 +82,10 @@ describe('datastoreserver', () => {
         reqID = 'anotherreq';
         onBind = [];
         onBindStore = [];
-        clientSocket.emit('datasync_bindrequest', reqID, 'store', {});
+        clientSocket.emit('datasync_bindrequest', reqID, 'store', {a: 44});
         expect(onBind[0]).toBe(serverSocket);
         expect(onBind[1]).toBe(server.getStore('store'));
+        expect(onBind[2]).toEqual({a: 44});
         expect(onBindStore[0]).toBe(reqID);
         expect(onBindStore[1].length).toBe(10);
     });

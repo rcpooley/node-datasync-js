@@ -48,7 +48,7 @@ export class DataStoreServer extends DataStoreManager {
                 let bindID = this.binder.getBindID(socket);
                 this.binder.bindStore(socket, store, bindID);
                 this.onBindCallbacks.forEach(callback => {
-                    callback(socket, this.getStore(storeID, userID));
+                    callback(socket, this.getStore(storeID, userID), connInfo);
                 });
 
                 socket.emit('datasync_bindstore', reqID, bindID);
