@@ -78,7 +78,7 @@ export class DataUtil {
      */
     private static traverseObjectWithArray(obj: any, pathArray: string[]): any {
         if (pathArray.length == 0) {
-            if (!obj) {
+            if (obj == null) {
                 return null;
             } else {
                 return obj;

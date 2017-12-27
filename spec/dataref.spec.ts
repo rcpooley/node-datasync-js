@@ -247,6 +247,15 @@ describe('dataref', () => {
         expect(update).toBe(null);
     });
 
+    it('should handle false update', () => {
+        let ref = store.ref('/fud');
+
+        ref.update(true);
+        ref.value(val => expect(val).toBe(true));
+        ref.update(false);
+        ref.value(val => expect(val).toBe(false));
+    });
+
     let deleteRef = store.ref('/testdelete');
     let delUpdate = [];
     deleteRef.on('update', (val, path) => delUpdate = [val, path]);
