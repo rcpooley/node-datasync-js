@@ -15,8 +15,9 @@
   "repository": "https://github.com/rcpooley/node-datasync-js",
   "devDependencies": {
     "@types/event-emitter": "^0.3.2",
-    "@types/node": "^8.0.53",
     "@types/jasmine": "^2.8.2",
+    "@types/node": "^8.0.53",
+    "browserify": "^15.2.0",
     "gulp": "^3.9.1",
     "gulp-clean": "^0.3.2",
     "gulp-jasmine": "^2.4.2",
